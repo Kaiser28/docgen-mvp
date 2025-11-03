@@ -1777,4 +1777,316 @@ app.get('/missions/:id', async (c) => {
   )
 })
 
+// Page modification mission (formulaire pré-rempli)
+app.get('/missions/:id/modifier', async (c) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_ANON_KEY
+  )
+
+  const missionId = c.req.param('id')
+
+  // Récupérer la mission
+  const { data: mission, error: missionError } = await supabase
+    .from('missions')
+    .select('*, clients(raison_sociale)')
+    .eq('id', missionId)
+    .single()
+
+  if (missionError || !mission) {
+    return c.render(
+      <div style={{ padding: '40px' }}>
+        <p style={{ color: 'red' }}>Mission non trouvée</p>
+        <a href="/missions" style={{ color: '#3b82f6' }}>← Retour aux missions</a>
+      </div>
+    )
+  }
+
+  // Récupérer la liste des clients pour le dropdown
+  const { data: clients } = await supabase
+    .from('clients')
+    .select('id, raison_sociale, forme_juridique')
+    .order('raison_sociale')
+
+  // Récupérer toutes les prestations
+  const { data: prestations } = await supabase
+    .from('prestations_catalogue')
+    .select('*')
+    .order('ordre')
+
+  // Récupérer les prestations déjà sélectionnées pour cette mission
+  const { data: prestationsSelectionnees } = await supabase
+    .from('missions_prestations')
+    .select('prestation_id')
+    .eq('mission_id', missionId)
+
+  const prestationsIds = prestationsSelectionnees?.map((p: any) => p.prestation_id) || []
+
+  return c.render(
+    <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif', maxWidth: '900px', margin: '0 auto' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <a href={`/missions/${mission.id}`} style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '16px' }}>
+          ← Retour à la mission
+        </a>
+      </div>
+
+      <h1 style={{ fontSize: '32px', marginBottom: '30px' }}>
+        Modifier la mission - {mission.clients?.raison_sociale}
+      </h1>
+
+      <form method="POST" action={`/missions/${mission.id}/modifier`} style={{ background: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        
+        {/* Sélection du client */}
+        <div style={{ marginBottom: '30px', paddingBottom: '30px', borderBottom: '2px solid #e5e7eb' }}>
+          <h2 style={{ fontSize: '20px', marginBottom: '20px', color: '#374151' }}>Client</h2>
+          
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+              Client *
+            </label>
+            <select 
+              name="client_id" 
+              required
+              style={{ 
+                width: '100%', 
+                padding: '12px', 
+                border: '1px solid #d1d5db', 
+                borderRadius: '6px',
+                fontSize: '16px'
+              }}
+            >
+              {clients?.map((client: any) => (
+                <option 
+                  key={client.id} 
+                  value={client.id}
+                  selected={client.id === mission.client_id}
+                >
+                  {client.raison_sociale} ({client.forme_juridique})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Période et honoraires */}
+        <div style={{ marginBottom: '30px', paddingBottom: '30px', borderBottom: '2px solid #e5e7eb' }}>
+          <h2 style={{ fontSize: '20px', marginBottom: '20px', color: '#374151' }}>Période et budget</h2>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                Date de début *
+              </label>
+              <input 
+                type="date" 
+                name="exercice_debut" 
+                value={mission.date_debut_mission}
+                required
+                style={{ 
+                  width: '100%', 
+                  padding: '10px', 
+                  border: '1px solid #d1d5db', 
+                  borderRadius: '6px',
+                  fontSize: '16px'
+                }} 
+              />
+            </div>
+            
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                Exercice concerné *
+              </label>
+              <input 
+                type="number" 
+                name="exercice_concerne" 
+                value={mission.exercice_concerne}
+                required
+                style={{ 
+                  width: '100%', 
+                  padding: '10px', 
+                  border: '1px solid #d1d5db', 
+                  borderRadius: '6px',
+                  fontSize: '16px'
+                }} 
+              />
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+              Budget annuel HT (€) *
+            </label>
+            <input 
+              type="number" 
+              name="honoraires_ht" 
+              value={mission.budget_annuel}
+              required
+              min="0"
+              step="0.01"
+              style={{ 
+                width: '100%', 
+                padding: '10px', 
+                border: '1px solid #d1d5db', 
+                borderRadius: '6px',
+                fontSize: '16px',
+                fontFamily: 'monospace'
+              }} 
+            />
+          </div>
+        </div>
+
+        {/* Prestations */}
+        <div style={{ marginBottom: '30px' }}>
+          <h2 style={{ fontSize: '20px', marginBottom: '20px', color: '#374151' }}>
+            Prestations comprises
+          </h2>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+            {prestations?.map((prestation: any) => (
+              <label 
+                key={prestation.id}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start',
+                  padding: '12px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onmouseover="this.style.background='#f9fafb'; this.style.borderColor='#3b82f6'"
+                onmouseout="this.style.background='white'; this.style.borderColor='#e5e7eb'"
+              >
+                <input 
+                  type="checkbox" 
+                  name="prestations" 
+                  value={prestation.id}
+                  checked={prestationsIds.includes(prestation.id)}
+                  style={{ marginRight: '12px', marginTop: '4px', width: '18px', height: '18px' }}
+                />
+                <div>
+                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>
+                    {prestation.nom}
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                    Catégorie: {prestation.categorie}
+                  </div>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Boutons */}
+        <div style={{ marginTop: '30px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+          <a 
+            href={`/missions/${mission.id}`}
+            style={{
+              padding: '12px 24px',
+              background: '#e5e7eb',
+              color: '#374151',
+              textDecoration: 'none',
+              borderRadius: '6px',
+              fontSize: '16px',
+              fontWeight: '600'
+            }}
+          >
+            Annuler
+          </a>
+          <button 
+            type="submit"
+            style={{
+              padding: '12px 24px',
+              background: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            Enregistrer les modifications
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+})
+
+// Traitement de la modification mission (POST)
+app.post('/missions/:id/modifier', async (c) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_ANON_KEY
+  )
+
+  const missionId = c.req.param('id')
+  const formData = await c.req.parseBody()
+  
+  const honorairesHT = parseFloat(formData.honoraires_ht as string)
+  const budgetMensuel = parseFloat((honorairesHT / 12).toFixed(2))
+
+  // 1. Mettre à jour la mission
+  const { error: missionError } = await supabase
+    .from('missions')
+    .update({
+      client_id: formData.client_id,
+      date_debut_mission: formData.exercice_debut,
+      exercice_concerne: parseInt(formData.exercice_concerne as string),
+      budget_annuel: honorairesHT,
+      budget_mensuel: budgetMensuel
+    })
+    .eq('id', missionId)
+
+  if (missionError) {
+    return c.render(
+      <div style={{ padding: '40px' }}>
+        <p style={{ color: 'red' }}>Erreur lors de la modification: {missionError.message}</p>
+        <a href={`/missions/${missionId}/modifier`} style={{ color: '#3b82f6' }}>← Retour au formulaire</a>
+      </div>
+    )
+  }
+
+  // 2. Supprimer toutes les anciennes prestations
+  await supabase
+    .from('missions_prestations')
+    .delete()
+    .eq('mission_id', missionId)
+
+  // 3. Récupérer les nouvelles prestations sélectionnées
+  let prestationsIds: string[] = []
+  if (formData.prestations) {
+    if (Array.isArray(formData.prestations)) {
+      prestationsIds = formData.prestations as string[]
+    } else {
+      prestationsIds = [formData.prestations as string]
+    }
+  }
+
+  // 4. Créer les nouveaux liens missions_prestations
+  if (prestationsIds.length > 0) {
+    const prestationsLinks = prestationsIds.map(prestationId => ({
+      mission_id: missionId,
+      prestation_id: prestationId
+    }))
+
+    const { error: prestationsError } = await supabase
+      .from('missions_prestations')
+      .insert(prestationsLinks)
+
+    if (prestationsError) {
+      return c.render(
+        <div style={{ padding: '40px' }}>
+          <p style={{ color: 'red' }}>Mission modifiée mais erreur prestations: {prestationsError.message}</p>
+          <a href={`/missions/${missionId}`} style={{ color: '#3b82f6' }}>Voir la mission</a>
+        </div>
+      )
+    }
+  }
+
+  // Redirection vers la page détail
+  return c.redirect(`/missions/${missionId}`)
+})
+
 export default app
