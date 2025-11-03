@@ -936,4 +936,48 @@ app.post('/clients/:id/modifier', async (c) => {
   return c.redirect(`/clients/${clientId}`)
 })
 
+// Suppression d'un client
+app.get('/clients/:id/supprimer', async (c) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_ANON_KEY
+  )
+
+  const clientId = c.req.param('id')
+
+  // Vérifier que le client existe avant de supprimer
+  const { data: client } = await supabase
+    .from('clients')
+    .select('raison_sociale')
+    .eq('id', clientId)
+    .single()
+
+  if (!client) {
+    return c.render(
+      <div style={{ padding: '40px' }}>
+        <p style={{ color: 'red' }}>Client non trouvé</p>
+        <a href="/clients" style={{ color: '#3b82f6' }}>← Retour aux clients</a>
+      </div>
+    )
+  }
+
+  // Supprimer le client
+  const { error } = await supabase
+    .from('clients')
+    .delete()
+    .eq('id', clientId)
+
+  if (error) {
+    return c.render(
+      <div style={{ padding: '40px' }}>
+        <p style={{ color: 'red' }}>Erreur lors de la suppression: {error.message}</p>
+        <a href={`/clients/${clientId}`} style={{ color: '#3b82f6' }}>← Retour à la fiche client</a>
+      </div>
+    )
+  }
+
+  // Redirection vers la liste des clients
+  return c.redirect('/clients')
+})
+
 export default app
