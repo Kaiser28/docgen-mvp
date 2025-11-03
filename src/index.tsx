@@ -1469,4 +1469,312 @@ app.post('/missions/nouvelle', async (c) => {
   return c.redirect('/missions')
 })
 
+// Page détail mission
+app.get('/missions/:id', async (c) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_ANON_KEY
+  )
+
+  const missionId = c.req.param('id')
+
+  // Récupérer la mission avec les infos du client
+  const { data: mission, error } = await supabase
+    .from('missions')
+    .select(`
+      *,
+      clients (
+        id,
+        raison_sociale,
+        forme_juridique,
+        siret,
+        adresse_ligne1,
+        code_postal,
+        ville
+      )
+    `)
+    .eq('id', missionId)
+    .single()
+
+  if (error || !mission) {
+    return c.render(
+      <div style={{ padding: '40px' }}>
+        <p style={{ color: 'red' }}>Mission non trouvée</p>
+        <a href="/missions" style={{ color: '#3b82f6' }}>← Retour aux missions</a>
+      </div>
+    )
+  }
+
+  // Récupérer les prestations liées à cette mission
+  const { data: prestationsData } = await supabase
+    .from('missions_prestations')
+    .select(`
+      prestations_catalogue (
+        id,
+        nom,
+        categorie
+      )
+    `)
+    .eq('mission_id', missionId)
+
+  const prestations = prestationsData?.map((p: any) => p.prestations_catalogue) || []
+
+  return c.render(
+    <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif', maxWidth: '1000px', margin: '0 auto' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <a href="/missions" style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '16px' }}>
+          ← Retour aux missions
+        </a>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+        <div>
+          <h1 style={{ fontSize: '32px', margin: '0', marginBottom: '10px' }}>
+            Mission - {mission.clients?.raison_sociale}
+          </h1>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <span style={{ 
+              background: mission.statut === 'brouillon' ? '#fef3c7' : '#dcfce7',
+              color: mission.statut === 'brouillon' ? '#92400e' : '#166534',
+              padding: '4px 12px',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}>
+              {mission.statut}
+            </span>
+            <span style={{ color: '#6b7280', fontSize: '14px' }}>
+              Exercice {mission.exercice_concerne}
+            </span>
+          </div>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <a 
+            href={`/missions/${mission.id}/modifier`}
+            style={{
+              padding: '10px 20px',
+              background: '#3b82f6',
+              color: 'white',
+              textDecoration: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}
+          >
+            ✏️ Modifier
+          </a>
+          <button
+            onclick={`if(confirm('Êtes-vous sûr de vouloir supprimer cette mission ?')) { window.location.href='/missions/${mission.id}/supprimer' }`}
+            style={{
+              padding: '10px 20px',
+              background: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            🗑️ Supprimer
+          </button>
+          <a 
+            href={`/missions/${mission.id}/generer-lettre`}
+            style={{
+              padding: '10px 20px',
+              background: '#10b981',
+              color: 'white',
+              textDecoration: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}
+          >
+            📄 Générer lettre
+          </a>
+        </div>
+      </div>
+
+      {/* Client */}
+      <div style={{ background: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '20px', marginBottom: '20px', color: '#374151' }}>
+          Client
+        </h2>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+              Raison sociale
+            </label>
+            <p style={{ fontSize: '16px', fontWeight: '500', margin: '0' }}>
+              {mission.clients?.raison_sociale}
+              <span style={{ 
+                marginLeft: '10px',
+                background: '#dbeafe', 
+                color: '#1e40af',
+                padding: '4px 12px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}>
+                {mission.clients?.forme_juridique}
+              </span>
+            </p>
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+              SIRET
+            </label>
+            <p style={{ fontSize: '16px', fontWeight: '500', margin: '0', fontFamily: 'monospace' }}>
+              {mission.clients?.siret}
+            </p>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+              Adresse
+            </label>
+            <p style={{ fontSize: '16px', margin: '0' }}>
+              {mission.clients?.adresse_ligne1}<br/>
+              {mission.clients?.code_postal} {mission.clients?.ville}
+            </p>
+          </div>
+
+          <div>
+            <a 
+              href={`/clients/${mission.clients?.id}`}
+              style={{
+                display: 'inline-block',
+                marginTop: '20px',
+                padding: '8px 16px',
+                background: '#f3f4f6',
+                color: '#374151',
+                textDecoration: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '600'
+              }}
+            >
+              Voir la fiche client →
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Informations mission */}
+      <div style={{ background: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '20px', marginBottom: '20px', color: '#374151' }}>
+          Détails de la mission
+        </h2>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+              Date de début
+            </label>
+            <p style={{ fontSize: '16px', margin: '0' }}>
+              {new Date(mission.date_debut_mission).toLocaleDateString('fr-FR')}
+            </p>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+              Exercice concerné
+            </label>
+            <p style={{ fontSize: '16px', fontWeight: '500', margin: '0' }}>
+              {mission.exercice_concerne}
+            </p>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+              Date de la lettre
+            </label>
+            <p style={{ fontSize: '16px', margin: '0' }}>
+              {new Date(mission.date_lettre).toLocaleDateString('fr-FR')}
+            </p>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+              Budget annuel (HT)
+            </label>
+            <p style={{ fontSize: '20px', fontWeight: '600', margin: '0', fontFamily: 'monospace', color: '#10b981' }}>
+              {mission.budget_annuel.toLocaleString('fr-FR')} €
+            </p>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+              Budget mensuel (HT)
+            </label>
+            <p style={{ fontSize: '18px', fontWeight: '500', margin: '0', fontFamily: 'monospace', color: '#6b7280' }}>
+              {mission.budget_mensuel.toLocaleString('fr-FR')} €
+            </p>
+          </div>
+
+          {mission.jour_prelevement && (
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+                Jour de prélèvement
+              </label>
+              <p style={{ fontSize: '16px', margin: '0' }}>
+                Le {mission.jour_prelevement} du mois
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Prestations */}
+      <div style={{ background: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ fontSize: '20px', marginBottom: '20px', color: '#374151' }}>
+          Prestations comprises ({prestations.length})
+        </h2>
+        
+        {prestations.length === 0 ? (
+          <p style={{ color: '#6b7280' }}>Aucune prestation associée</p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
+            {prestations.map((prestation: any) => (
+              <div 
+                key={prestation.id}
+                style={{ 
+                  padding: '12px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: '600' }}>
+                    {prestation.nom}
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                    Catégorie: {prestation.categorie}
+                  </div>
+                </div>
+                <span style={{ 
+                  background: '#dcfce7',
+                  color: '#166534',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: '600'
+                }}>
+                  ✓
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+})
+
 export default app
