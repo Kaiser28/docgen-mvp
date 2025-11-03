@@ -1096,7 +1096,8 @@ app.get('/missions', async (c) => {
           <tbody>
             {missions.map((mission: any) => {
               const dateDebut = new Date(mission.date_debut_mission).toLocaleDateString('fr-FR')
-              const dateFin = new Date(mission.date_fin_mission).toLocaleDateString('fr-FR')
+              // Pas de date_fin_mission, on affiche juste l'exercice
+              const exercice = mission.exercice_concerne
               
               return (
                 <tr 
@@ -1127,10 +1128,10 @@ app.get('/missions', async (c) => {
                     </span>
                   </td>
                   <td style={{ padding: '16px', fontSize: '14px' }}>
-                    {dateDebut} → {dateFin}
+                    Exercice {exercice} (début: {dateDebut})
                   </td>
                   <td style={{ padding: '16px', textAlign: 'right', fontWeight: '500', fontFamily: 'monospace' }}>
-                    {mission.honoraires_annuels ? `${mission.honoraires_annuels.toLocaleString('fr-FR')} €` : '-'}
+                    {mission.budget_annuel ? `${mission.budget_annuel.toLocaleString('fr-FR')} €` : '-'}
                   </td>
                   <td style={{ padding: '16px', textAlign: 'center' }}>
                     <span style={{ 
@@ -1404,16 +1405,21 @@ app.post('/missions/nouvelle', async (c) => {
   const honorairesHT = parseFloat(formData.honoraires_ht as string)
   const honorairesTTC = honorairesHT * 1.20
 
+  // Extraire l'année de la date de début pour exercice_concerne
+  const anneeExercice = new Date(formData.exercice_debut as string).getFullYear()
+  
+  // Calculer le budget mensuel
+  const budgetMensuel = parseFloat((honorairesHT / 12).toFixed(2))
+
   // 1. Créer la mission
   const { data: mission, error: missionError } = await supabase
     .from('missions')
     .insert({
       client_id: formData.client_id,
-      type_mission: formData.type_mission,
       date_debut_mission: formData.exercice_debut,
-      date_fin_mission: formData.exercice_fin,
-      honoraires_annuels: honorairesHT,
-      honoraires_ttc: honorairesTTC
+      exercice_concerne: anneeExercice,
+      budget_annuel: honorairesHT,
+      budget_mensuel: budgetMensuel
     })
     .select()
     .single()
