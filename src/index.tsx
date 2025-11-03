@@ -132,7 +132,17 @@ app.get('/clients', async (c) => {
           </thead>
           <tbody>
             {clients.map((client: any) => (
-              <tr key={client.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+              <tr 
+                key={client.id} 
+                style={{ 
+                  borderBottom: '1px solid #e5e7eb',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+                onmouseover="this.style.background='#f9fafb'"
+                onmouseout="this.style.background='white'"
+                onclick={`window.location.href='/clients/${client.id}'`}
+              >
                 <td style={{ padding: '16px', fontWeight: '500' }}>{client.raison_sociale}</td>
                 <td style={{ padding: '16px' }}>
                   <span style={{ 
@@ -450,6 +460,182 @@ app.post('/clients/nouveau', async (c) => {
 
   // Redirection vers la liste des clients
   return c.redirect('/clients')
+})
+
+// Page détail client
+app.get('/clients/:id', async (c) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_ANON_KEY
+  )
+
+  const clientId = c.req.param('id')
+
+  const { data: client, error } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('id', clientId)
+    .single()
+
+  if (error || !client) {
+    return c.render(
+      <div style={{ padding: '40px' }}>
+        <p style={{ color: 'red' }}>Client non trouvé</p>
+        <a href="/clients" style={{ color: '#3b82f6' }}>← Retour aux clients</a>
+      </div>
+    )
+  }
+
+  return c.render(
+    <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif', maxWidth: '900px', margin: '0 auto' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <a href="/clients" style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '16px' }}>
+          ← Retour aux clients
+        </a>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+        <h1 style={{ fontSize: '32px', margin: '0' }}>
+          {client.raison_sociale}
+        </h1>
+        
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <a 
+            href={`/clients/${client.id}/modifier`}
+            style={{
+              padding: '10px 20px',
+              background: '#3b82f6',
+              color: 'white',
+              textDecoration: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}
+          >
+            ✏️ Modifier
+          </a>
+          <button
+            onclick={`if(confirm('Êtes-vous sûr de vouloir supprimer ce client ?')) { window.location.href='/clients/${client.id}/supprimer' }`}
+            style={{
+              padding: '10px 20px',
+              background: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            🗑️ Supprimer
+          </button>
+        </div>
+      </div>
+
+      <div style={{ background: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ fontSize: '20px', marginBottom: '20px', color: '#374151' }}>
+          Informations générales
+        </h2>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+              Forme juridique
+            </label>
+            <p style={{ fontSize: '16px', fontWeight: '500', margin: '0' }}>
+              <span style={{ 
+                background: '#dbeafe', 
+                color: '#1e40af',
+                padding: '4px 12px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}>
+                {client.forme_juridique}
+              </span>
+            </p>
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+              SIRET
+            </label>
+            <p style={{ fontSize: '16px', fontWeight: '500', margin: '0', fontFamily: 'monospace' }}>
+              {client.siret}
+            </p>
+          </div>
+        </div>
+
+        <h2 style={{ fontSize: '20px', marginBottom: '20px', color: '#374151', marginTop: '30px' }}>
+          Adresse
+        </h2>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '15px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+              Rue
+            </label>
+            <p style={{ fontSize: '16px', margin: '0' }}>
+              {client.adresse_ligne1}
+            </p>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+                Code postal
+              </label>
+              <p style={{ fontSize: '16px', margin: '0' }}>
+                {client.code_postal}
+              </p>
+            </div>
+            
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+                Ville
+              </label>
+              <p style={{ fontSize: '16px', margin: '0' }}>
+                {client.ville}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+              Siège social
+            </label>
+            <p style={{ fontSize: '16px', margin: '0' }}>
+              {client.siege_adresse}
+            </p>
+          </div>
+        </div>
+
+        <h2 style={{ fontSize: '20px', marginBottom: '20px', color: '#374151', marginTop: '30px' }}>
+          Dirigeant
+        </h2>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+              Civilité
+            </label>
+            <p style={{ fontSize: '16px', margin: '0' }}>
+              {client.dirigeant_civilite || '-'}
+            </p>
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>
+              Fonction
+            </label>
+            <p style={{ fontSize: '16px', margin: '0' }}>
+              {client.dirigeant_fonction || '-'}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 })
 
 export default app
