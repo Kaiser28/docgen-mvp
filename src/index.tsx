@@ -1434,15 +1434,20 @@ app.post('/missions/nouvelle', async (c) => {
   }
 
   // 2. Récupérer les prestations sélectionnées
-  // formData.prestations peut être une string ou un array
   let prestationsIds: string[] = []
-  if (formData.prestations) {
-    if (Array.isArray(formData.prestations)) {
-      prestationsIds = formData.prestations as string[]
-    } else {
-      prestationsIds = [formData.prestations as string]
+  
+  // Solution robuste : parcourir toutes les clés du formData
+  for (const [key, value] of Object.entries(formData)) {
+    if (key === 'prestations') {
+      if (Array.isArray(value)) {
+        prestationsIds = value as string[]
+      } else if (value) {
+        prestationsIds = [value as string]
+      }
     }
   }
+  
+  console.log('Prestations sélectionnées lors de la création:', prestationsIds)
 
   // 3. Créer les liens missions_prestations
   if (prestationsIds.length > 0) {
@@ -2024,6 +2029,9 @@ app.post('/missions/:id/modifier', async (c) => {
   const missionId = c.req.param('id')
   const formData = await c.req.parseBody()
   
+  console.log('FormData reçu:', formData)
+  console.log('Prestations brutes:', formData.prestations)
+  
   const honorairesHT = parseFloat(formData.honoraires_ht as string)
   const budgetMensuel = parseFloat((honorairesHT / 12).toFixed(2))
 
@@ -2056,13 +2064,20 @@ app.post('/missions/:id/modifier', async (c) => {
 
   // 3. Récupérer les nouvelles prestations sélectionnées
   let prestationsIds: string[] = []
-  if (formData.prestations) {
-    if (Array.isArray(formData.prestations)) {
-      prestationsIds = formData.prestations as string[]
-    } else {
-      prestationsIds = [formData.prestations as string]
+  
+  // Solution robuste : parcourir toutes les clés du formData
+  for (const [key, value] of Object.entries(formData)) {
+    if (key === 'prestations') {
+      if (Array.isArray(value)) {
+        prestationsIds = value as string[]
+      } else if (value) {
+        prestationsIds = [value as string]
+      }
     }
   }
+  
+  console.log('Prestations IDs extraits:', prestationsIds)
+  console.log('Nombre de prestations:', prestationsIds.length)
 
   // 4. Créer les nouveaux liens missions_prestations
   if (prestationsIds.length > 0) {
