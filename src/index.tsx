@@ -39,18 +39,23 @@ app.get('/', (c) => {
           📋 Clients
         </a>
         
-        <div style={{
-          padding: '30px',
-          background: '#e5e7eb',
-          color: '#9ca3af',
-          borderRadius: '12px',
-          fontSize: '20px',
-          fontWeight: 'bold',
-          minWidth: '200px',
-          textAlign: 'center'
-        }}>
-          📄 Missions (bientôt)
-        </div>
+        <a 
+          href="/missions" 
+          style={{
+            display: 'block',
+            padding: '30px',
+            background: '#10b981',
+            color: 'white',
+            textDecoration: 'none',
+            borderRadius: '12px',
+            fontSize: '20px',
+            fontWeight: 'bold',
+            minWidth: '200px',
+            textAlign: 'center'
+          }}
+        >
+          📄 Missions
+        </a>
       </div>
     </div>
   )
@@ -978,6 +983,175 @@ app.get('/clients/:id/supprimer', async (c) => {
 
   // Redirection vers la liste des clients
   return c.redirect('/clients')
+})
+
+// ==================== MISSIONS ====================
+
+// Page liste missions
+app.get('/missions', async (c) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_ANON_KEY
+  )
+
+  // Récupérer toutes les missions avec les infos du client
+  const { data: missions, error } = await supabase
+    .from('missions')
+    .select(`
+      *,
+      clients (
+        raison_sociale,
+        forme_juridique
+      )
+    `)
+
+  if (error) {
+    return c.render(
+      <div style={{ padding: '40px' }}>
+        <p style={{ color: 'red' }}>Erreur: {error.message}</p>
+      </div>
+    )
+  }
+
+  return c.render(
+    <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <a href="/" style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '16px' }}>
+          ← Retour
+        </a>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+        <div>
+          <h1 style={{ fontSize: '32px', marginBottom: '10px' }}>
+            Missions
+          </h1>
+          <p style={{ color: '#666' }}>
+            {missions?.length || 0} mission{(missions?.length || 0) > 1 ? 's' : ''}
+          </p>
+        </div>
+        
+        <a 
+          href="/missions/nouvelle" 
+          style={{
+            display: 'inline-block',
+            padding: '12px 24px',
+            background: '#10b981',
+            color: 'white',
+            textDecoration: 'none',
+            borderRadius: '8px',
+            fontSize: '16px',
+            fontWeight: '600'
+          }}
+        >
+          ➕ Nouvelle mission
+        </a>
+      </div>
+
+      {!missions || missions.length === 0 ? (
+        <div style={{ 
+          background: 'white', 
+          padding: '60px', 
+          borderRadius: '12px', 
+          textAlign: 'center',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+        }}>
+          <p style={{ fontSize: '18px', color: '#6b7280', marginBottom: '20px' }}>
+            Aucune mission pour le moment
+          </p>
+          <a 
+            href="/missions/nouvelle"
+            style={{
+              display: 'inline-block',
+              padding: '12px 24px',
+              background: '#10b981',
+              color: 'white',
+              textDecoration: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: '600'
+            }}
+          >
+            Créer la première mission
+          </a>
+        </div>
+      ) : (
+        <table style={{ 
+          width: '100%', 
+          borderCollapse: 'collapse',
+          background: 'white',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          borderRadius: '8px',
+          overflow: 'hidden'
+        }}>
+          <thead>
+            <tr style={{ background: '#f3f4f6', borderBottom: '2px solid #e5e7eb' }}>
+              <th style={{ padding: '16px', textAlign: 'left', fontWeight: '600' }}>Client</th>
+              <th style={{ padding: '16px', textAlign: 'left', fontWeight: '600' }}>Type</th>
+              <th style={{ padding: '16px', textAlign: 'left', fontWeight: '600' }}>Période</th>
+              <th style={{ padding: '16px', textAlign: 'right', fontWeight: '600' }}>Honoraires HT</th>
+              <th style={{ padding: '16px', textAlign: 'center', fontWeight: '600' }}>Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            {missions.map((mission: any) => {
+              const dateDebut = new Date(mission.exercice_debut).toLocaleDateString('fr-FR')
+              const dateFin = new Date(mission.exercice_fin).toLocaleDateString('fr-FR')
+              
+              return (
+                <tr 
+                  key={mission.id}
+                  style={{ 
+                    borderBottom: '1px solid #e5e7eb',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s'
+                  }}
+                  onmouseover="this.style.background='#f9fafb'"
+                  onmouseout="this.style.background='white'"
+                  onclick={`window.location.href='/missions/${mission.id}'`}
+                >
+                  <td style={{ padding: '16px' }}>
+                    <div style={{ fontWeight: '500' }}>{mission.clients?.raison_sociale}</div>
+                    <div style={{ fontSize: '14px', color: '#6b7280' }}>{mission.clients?.forme_juridique}</div>
+                  </td>
+                  <td style={{ padding: '16px' }}>
+                    <span style={{ 
+                      background: mission.type_mission === 'Première mission' ? '#dbeafe' : '#fef3c7',
+                      color: mission.type_mission === 'Première mission' ? '#1e40af' : '#92400e',
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}>
+                      {mission.type_mission}
+                    </span>
+                  </td>
+                  <td style={{ padding: '16px', fontSize: '14px' }}>
+                    {dateDebut} → {dateFin}
+                  </td>
+                  <td style={{ padding: '16px', textAlign: 'right', fontWeight: '500', fontFamily: 'monospace' }}>
+                    {mission.honoraires_ht ? `${mission.honoraires_ht.toLocaleString('fr-FR')} €` : '-'}
+                  </td>
+                  <td style={{ padding: '16px', textAlign: 'center' }}>
+                    <span style={{ 
+                      background: '#dcfce7',
+                      color: '#166534',
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}>
+                      Active
+                    </span>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
 })
 
 export default app
