@@ -1839,7 +1839,7 @@ app.get('/missions/:id/modifier', async (c) => {
         Modifier la mission - {mission.clients?.raison_sociale}
       </h1>
 
-      <form method="POST" action={`/missions/${mission.id}/modifier`} style={{ background: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+      <form id="missionForm" style={{ background: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
         
         {/* Sélection du client */}
         <div style={{ marginBottom: '30px', paddingBottom: '30px', borderBottom: '2px solid #e5e7eb' }}>
@@ -2015,6 +2015,46 @@ app.get('/missions/:id/modifier', async (c) => {
           </button>
         </div>
       </form>
+
+      <script dangerouslySetInnerHTML={{ __html: `
+        document.getElementById('missionForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          
+          const form = e.target;
+          const formData = new FormData(form);
+          
+          // Récupérer toutes les checkboxes cochées
+          const prestations = [];
+          const checkboxes = form.querySelectorAll('input[name="prestations"]:checked');
+          checkboxes.forEach(cb => prestations.push(cb.value));
+          
+          // Préparer les données
+          const data = {
+            client_id: formData.get('client_id'),
+            exercice_debut: formData.get('exercice_debut'),
+            exercice_concerne: formData.get('exercice_concerne'),
+            honoraires_ht: formData.get('honoraires_ht'),
+            prestations: prestations
+          };
+          
+          console.log('Données envoyées (côté client):', data);
+          console.log('Nombre de prestations sélectionnées:', prestations.length);
+          
+          // Envoyer en JSON
+          const response = await fetch('/missions/${mission.id}/modifier', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+          
+          if (response.ok) {
+            window.location.href = '/missions/${mission.id}';
+          } else {
+            const text = await response.text();
+            alert('Erreur lors de la modification: ' + text);
+          }
+        });
+      ` }} />
     </div>
   )
 })
@@ -2027,21 +2067,24 @@ app.post('/missions/:id/modifier', async (c) => {
   )
 
   const missionId = c.req.param('id')
-  const formData = await c.req.parseBody()
   
-  console.log('FormData reçu:', formData)
-  console.log('Prestations brutes:', formData.prestations)
+  // Accepter du JSON au lieu de form data
+  const data = await c.req.json()
   
-  const honorairesHT = parseFloat(formData.honoraires_ht as string)
+  console.log('JSON reçu:', data)
+  console.log('Prestations reçues:', data.prestations)
+  console.log('Nombre de prestations:', data.prestations?.length)
+  
+  const honorairesHT = parseFloat(data.honoraires_ht)
   const budgetMensuel = parseFloat((honorairesHT / 12).toFixed(2))
 
   // 1. Mettre à jour la mission
   const { error: missionError } = await supabase
     .from('missions')
     .update({
-      client_id: formData.client_id,
-      date_debut_mission: formData.exercice_debut,
-      exercice_concerne: parseInt(formData.exercice_concerne as string),
+      client_id: data.client_id,
+      date_debut_mission: data.exercice_debut,
+      exercice_concerne: parseInt(data.exercice_concerne),
       budget_annuel: honorairesHT,
       budget_mensuel: budgetMensuel
     })
@@ -2063,21 +2106,10 @@ app.post('/missions/:id/modifier', async (c) => {
     .eq('mission_id', missionId)
 
   // 3. Récupérer les nouvelles prestations sélectionnées
-  let prestationsIds: string[] = []
+  const prestationsIds: string[] = data.prestations || []
   
-  // Solution robuste : parcourir toutes les clés du formData
-  for (const [key, value] of Object.entries(formData)) {
-    if (key === 'prestations') {
-      if (Array.isArray(value)) {
-        prestationsIds = value as string[]
-      } else if (value) {
-        prestationsIds = [value as string]
-      }
-    }
-  }
-  
-  console.log('Prestations IDs extraits:', prestationsIds)
-  console.log('Nombre de prestations:', prestationsIds.length)
+  console.log('Prestations IDs à insérer:', prestationsIds)
+  console.log('Nombre de prestations à insérer:', prestationsIds.length)
 
   // 4. Créer les nouveaux liens missions_prestations
   if (prestationsIds.length > 0) {
