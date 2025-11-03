@@ -1095,8 +1095,8 @@ app.get('/missions', async (c) => {
           </thead>
           <tbody>
             {missions.map((mission: any) => {
-              const dateDebut = new Date(mission.exercice_debut).toLocaleDateString('fr-FR')
-              const dateFin = new Date(mission.exercice_fin).toLocaleDateString('fr-FR')
+              const dateDebut = new Date(mission.date_debut_mission).toLocaleDateString('fr-FR')
+              const dateFin = new Date(mission.date_fin_mission).toLocaleDateString('fr-FR')
               
               return (
                 <tr 
@@ -1130,7 +1130,7 @@ app.get('/missions', async (c) => {
                     {dateDebut} → {dateFin}
                   </td>
                   <td style={{ padding: '16px', textAlign: 'right', fontWeight: '500', fontFamily: 'monospace' }}>
-                    {mission.honoraires_ht ? `${mission.honoraires_ht.toLocaleString('fr-FR')} €` : '-'}
+                    {mission.honoraires_annuels ? `${mission.honoraires_annuels.toLocaleString('fr-FR')} €` : '-'}
                   </td>
                   <td style={{ padding: '16px', textAlign: 'center' }}>
                     <span style={{ 
@@ -1343,13 +1343,11 @@ app.get('/missions/nouvelle', async (c) => {
                 />
                 <div>
                   <div style={{ fontWeight: '600', marginBottom: '4px' }}>
-                    {prestation.titre}
+                    {prestation.nom}
                   </div>
-                  {prestation.description && (
-                    <div style={{ fontSize: '14px', color: '#6b7280' }}>
-                      {prestation.description}
-                    </div>
-                  )}
+                  <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                    Catégorie: {prestation.categorie}
+                  </div>
                 </div>
               </label>
             ))}
@@ -1412,9 +1410,9 @@ app.post('/missions/nouvelle', async (c) => {
     .insert({
       client_id: formData.client_id,
       type_mission: formData.type_mission,
-      exercice_debut: formData.exercice_debut,
-      exercice_fin: formData.exercice_fin,
-      honoraires_ht: honorairesHT,
+      date_debut_mission: formData.exercice_debut,
+      date_fin_mission: formData.exercice_fin,
+      honoraires_annuels: honorairesHT,
       honoraires_ttc: honorairesTTC
     })
     .select()
