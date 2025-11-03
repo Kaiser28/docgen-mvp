@@ -1154,4 +1154,315 @@ app.get('/missions', async (c) => {
   )
 })
 
+// Page création mission (formulaire)
+app.get('/missions/nouvelle', async (c) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_ANON_KEY
+  )
+
+  // Récupérer la liste des clients pour le dropdown
+  const { data: clients } = await supabase
+    .from('clients')
+    .select('id, raison_sociale, forme_juridique')
+    .order('raison_sociale')
+
+  // Récupérer le catalogue des prestations pour les checkboxes
+  const { data: prestations } = await supabase
+    .from('prestations_catalogue')
+    .select('*')
+    .order('ordre')
+
+  return c.render(
+    <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif', maxWidth: '900px', margin: '0 auto' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <a href="/missions" style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '16px' }}>
+          ← Retour aux missions
+        </a>
+      </div>
+
+      <h1 style={{ fontSize: '32px', marginBottom: '30px' }}>
+        Nouvelle mission
+      </h1>
+
+      <form method="POST" action="/missions/nouvelle" style={{ background: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        
+        {/* Sélection du client */}
+        <div style={{ marginBottom: '30px', paddingBottom: '30px', borderBottom: '2px solid #e5e7eb' }}>
+          <h2 style={{ fontSize: '20px', marginBottom: '20px', color: '#374151' }}>Client</h2>
+          
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+              Sélectionner le client *
+            </label>
+            <select 
+              name="client_id" 
+              required
+              style={{ 
+                width: '100%', 
+                padding: '12px', 
+                border: '1px solid #d1d5db', 
+                borderRadius: '6px',
+                fontSize: '16px'
+              }}
+            >
+              <option value="">Choisir un client...</option>
+              {clients?.map((client: any) => (
+                <option key={client.id} value={client.id}>
+                  {client.raison_sociale} ({client.forme_juridique})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Type de mission */}
+        <div style={{ marginBottom: '30px', paddingBottom: '30px', borderBottom: '2px solid #e5e7eb' }}>
+          <h2 style={{ fontSize: '20px', marginBottom: '20px', color: '#374151' }}>Type de mission</h2>
+          
+          <div style={{ display: 'flex', gap: '20px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <input 
+                type="radio" 
+                name="type_mission" 
+                value="Première mission"
+                required
+                style={{ marginRight: '8px', width: '20px', height: '20px' }}
+              />
+              <span style={{ fontSize: '16px' }}>Première mission</span>
+            </label>
+            
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <input 
+                type="radio" 
+                name="type_mission" 
+                value="Renouvellement"
+                style={{ marginRight: '8px', width: '20px', height: '20px' }}
+              />
+              <span style={{ fontSize: '16px' }}>Renouvellement</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Période et honoraires */}
+        <div style={{ marginBottom: '30px', paddingBottom: '30px', borderBottom: '2px solid #e5e7eb' }}>
+          <h2 style={{ fontSize: '20px', marginBottom: '20px', color: '#374151' }}>Période et honoraires</h2>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                Début de l'exercice *
+              </label>
+              <input 
+                type="date" 
+                name="exercice_debut" 
+                required
+                style={{ 
+                  width: '100%', 
+                  padding: '10px', 
+                  border: '1px solid #d1d5db', 
+                  borderRadius: '6px',
+                  fontSize: '16px'
+                }} 
+              />
+            </div>
+            
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                Fin de l'exercice *
+              </label>
+              <input 
+                type="date" 
+                name="exercice_fin" 
+                required
+                style={{ 
+                  width: '100%', 
+                  padding: '10px', 
+                  border: '1px solid #d1d5db', 
+                  borderRadius: '6px',
+                  fontSize: '16px'
+                }} 
+              />
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+              Honoraires annuels HT (€) *
+            </label>
+            <input 
+              type="number" 
+              name="honoraires_ht" 
+              required
+              min="0"
+              step="0.01"
+              placeholder="5000.00"
+              style={{ 
+                width: '100%', 
+                padding: '10px', 
+                border: '1px solid #d1d5db', 
+                borderRadius: '6px',
+                fontSize: '16px',
+                fontFamily: 'monospace'
+              }} 
+            />
+          </div>
+        </div>
+
+        {/* Prestations */}
+        <div style={{ marginBottom: '30px' }}>
+          <h2 style={{ fontSize: '20px', marginBottom: '20px', color: '#374151' }}>
+            Prestations comprises dans la mission *
+          </h2>
+          
+          <p style={{ color: '#6b7280', marginBottom: '15px', fontSize: '14px' }}>
+            Sélectionnez au moins une prestation
+          </p>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+            {prestations?.map((prestation: any) => (
+              <label 
+                key={prestation.id}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start',
+                  padding: '12px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onmouseover="this.style.background='#f9fafb'; this.style.borderColor='#3b82f6'"
+                onmouseout="this.style.background='white'; this.style.borderColor='#e5e7eb'"
+              >
+                <input 
+                  type="checkbox" 
+                  name="prestations" 
+                  value={prestation.id}
+                  style={{ marginRight: '12px', marginTop: '4px', width: '18px', height: '18px' }}
+                />
+                <div>
+                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>
+                    {prestation.titre}
+                  </div>
+                  {prestation.description && (
+                    <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                      {prestation.description}
+                    </div>
+                  )}
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Boutons */}
+        <div style={{ marginTop: '30px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+          <a 
+            href="/missions" 
+            style={{
+              padding: '12px 24px',
+              background: '#e5e7eb',
+              color: '#374151',
+              textDecoration: 'none',
+              borderRadius: '6px',
+              fontSize: '16px',
+              fontWeight: '600'
+            }}
+          >
+            Annuler
+          </a>
+          <button 
+            type="submit"
+            style={{
+              padding: '12px 24px',
+              background: '#10b981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            Créer la mission
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+})
+
+// Traitement de la création mission (POST)
+app.post('/missions/nouvelle', async (c) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_ANON_KEY
+  )
+
+  const formData = await c.req.parseBody()
+  
+  // Calculer les honoraires TTC (TVA 20%)
+  const honorairesHT = parseFloat(formData.honoraires_ht as string)
+  const honorairesTTC = honorairesHT * 1.20
+
+  // 1. Créer la mission
+  const { data: mission, error: missionError } = await supabase
+    .from('missions')
+    .insert({
+      client_id: formData.client_id,
+      type_mission: formData.type_mission,
+      exercice_debut: formData.exercice_debut,
+      exercice_fin: formData.exercice_fin,
+      honoraires_ht: honorairesHT,
+      honoraires_ttc: honorairesTTC
+    })
+    .select()
+    .single()
+
+  if (missionError) {
+    return c.render(
+      <div style={{ padding: '40px' }}>
+        <p style={{ color: 'red' }}>Erreur lors de la création: {missionError.message}</p>
+        <a href="/missions/nouvelle" style={{ color: '#3b82f6' }}>← Retour au formulaire</a>
+      </div>
+    )
+  }
+
+  // 2. Récupérer les prestations sélectionnées
+  // formData.prestations peut être une string ou un array
+  let prestationsIds: string[] = []
+  if (formData.prestations) {
+    if (Array.isArray(formData.prestations)) {
+      prestationsIds = formData.prestations as string[]
+    } else {
+      prestationsIds = [formData.prestations as string]
+    }
+  }
+
+  // 3. Créer les liens missions_prestations
+  if (prestationsIds.length > 0) {
+    const prestationsLinks = prestationsIds.map(prestationId => ({
+      mission_id: mission.id,
+      prestation_id: prestationId
+    }))
+
+    const { error: prestationsError } = await supabase
+      .from('missions_prestations')
+      .insert(prestationsLinks)
+
+    if (prestationsError) {
+      return c.render(
+        <div style={{ padding: '40px' }}>
+          <p style={{ color: 'red' }}>Mission créée mais erreur prestations: {prestationsError.message}</p>
+          <a href={`/missions/${mission.id}`} style={{ color: '#3b82f6' }}>Voir la mission</a>
+        </div>
+      )
+    }
+  }
+
+  // Redirection vers la liste des missions
+  return c.redirect('/missions')
+})
+
 export default app
