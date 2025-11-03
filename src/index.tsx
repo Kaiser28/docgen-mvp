@@ -638,4 +638,302 @@ app.get('/clients/:id', async (c) => {
   )
 })
 
+// Page modification client (formulaire pré-rempli)
+app.get('/clients/:id/modifier', async (c) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_ANON_KEY
+  )
+
+  const clientId = c.req.param('id')
+
+  const { data: client, error } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('id', clientId)
+    .single()
+
+  if (error || !client) {
+    return c.render(
+      <div style={{ padding: '40px' }}>
+        <p style={{ color: 'red' }}>Client non trouvé</p>
+        <a href="/clients" style={{ color: '#3b82f6' }}>← Retour aux clients</a>
+      </div>
+    )
+  }
+
+  return c.render(
+    <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif', maxWidth: '800px', margin: '0 auto' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <a href={`/clients/${client.id}`} style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '16px' }}>
+          ← Retour à la fiche client
+        </a>
+      </div>
+
+      <h1 style={{ fontSize: '32px', marginBottom: '30px' }}>
+        Modifier {client.raison_sociale}
+      </h1>
+
+      <form method="POST" action={`/clients/${client.id}/modifier`} style={{ background: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+            Raison sociale *
+          </label>
+          <input 
+            type="text" 
+            name="raison_sociale" 
+            value={client.raison_sociale}
+            required
+            style={{ 
+              width: '100%', 
+              padding: '10px', 
+              border: '1px solid #d1d5db', 
+              borderRadius: '6px',
+              fontSize: '16px'
+            }} 
+          />
+        </div>
+
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+            Forme juridique *
+          </label>
+          <select 
+            name="forme_juridique" 
+            required
+            style={{ 
+              width: '100%', 
+              padding: '10px', 
+              border: '1px solid #d1d5db', 
+              borderRadius: '6px',
+              fontSize: '16px'
+            }}
+          >
+            <option value="SAS" selected={client.forme_juridique === 'SAS'}>SAS</option>
+            <option value="SARL" selected={client.forme_juridique === 'SARL'}>SARL</option>
+            <option value="SASU" selected={client.forme_juridique === 'SASU'}>SASU</option>
+            <option value="EURL" selected={client.forme_juridique === 'EURL'}>EURL</option>
+            <option value="SA" selected={client.forme_juridique === 'SA'}>SA</option>
+            <option value="SCI" selected={client.forme_juridique === 'SCI'}>SCI</option>
+          </select>
+        </div>
+
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+            SIRET * (14 chiffres)
+          </label>
+          <input 
+            type="text" 
+            name="siret" 
+            value={client.siret}
+            required
+            pattern="[0-9]{14}"
+            maxlength="14"
+            style={{ 
+              width: '100%', 
+              padding: '10px', 
+              border: '1px solid #d1d5db', 
+              borderRadius: '6px',
+              fontSize: '16px',
+              fontFamily: 'monospace'
+            }} 
+          />
+        </div>
+
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+            Adresse *
+          </label>
+          <input 
+            type="text" 
+            name="adresse_ligne1" 
+            value={client.adresse_ligne1}
+            required
+            style={{ 
+              width: '100%', 
+              padding: '10px', 
+              border: '1px solid #d1d5db', 
+              borderRadius: '6px',
+              fontSize: '16px'
+            }} 
+          />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', marginBottom: '20px' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+              Code postal *
+            </label>
+            <input 
+              type="text" 
+              name="code_postal" 
+              value={client.code_postal}
+              required
+              pattern="[0-9]{5}"
+              maxlength="5"
+              style={{ 
+                width: '100%', 
+                padding: '10px', 
+                border: '1px solid #d1d5db', 
+                borderRadius: '6px',
+                fontSize: '16px'
+              }} 
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+              Ville *
+            </label>
+            <input 
+              type="text" 
+              name="ville" 
+              value={client.ville}
+              required
+              style={{ 
+                width: '100%', 
+                padding: '10px', 
+                border: '1px solid #d1d5db', 
+                borderRadius: '6px',
+                fontSize: '16px'
+              }} 
+            />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+            Siège social *
+          </label>
+          <input 
+            type="text" 
+            name="siege_adresse" 
+            value={client.siege_adresse}
+            required
+            style={{ 
+              width: '100%', 
+              padding: '10px', 
+              border: '1px solid #d1d5db', 
+              borderRadius: '6px',
+              fontSize: '16px'
+            }} 
+          />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', marginBottom: '20px' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+              Civilité dirigeant *
+            </label>
+            <select 
+              name="dirigeant_civilite" 
+              required
+              style={{ 
+                width: '100%', 
+                padding: '10px', 
+                border: '1px solid #d1d5db', 
+                borderRadius: '6px',
+                fontSize: '16px'
+              }}
+            >
+              <option value="M." selected={client.dirigeant_civilite === 'M.'}>M.</option>
+              <option value="Mme" selected={client.dirigeant_civilite === 'Mme'}>Mme</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+              Fonction dirigeant *
+            </label>
+            <input 
+              type="text" 
+              name="dirigeant_fonction" 
+              value={client.dirigeant_fonction || ''}
+              required
+              style={{ 
+                width: '100%', 
+                padding: '10px', 
+                border: '1px solid #d1d5db', 
+                borderRadius: '6px',
+                fontSize: '16px'
+              }} 
+            />
+          </div>
+        </div>
+
+        <div style={{ marginTop: '30px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+          <a 
+            href={`/clients/${client.id}`}
+            style={{
+              padding: '12px 24px',
+              background: '#e5e7eb',
+              color: '#374151',
+              textDecoration: 'none',
+              borderRadius: '6px',
+              fontSize: '16px',
+              fontWeight: '600'
+            }}
+          >
+            Annuler
+          </a>
+          <button 
+            type="submit"
+            style={{
+              padding: '12px 24px',
+              background: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            Enregistrer les modifications
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+})
+
+// Traitement de la modification client (POST)
+app.post('/clients/:id/modifier', async (c) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_ANON_KEY
+  )
+
+  const clientId = c.req.param('id')
+  const formData = await c.req.parseBody()
+
+  const { error } = await supabase
+    .from('clients')
+    .update({
+      raison_sociale: formData.raison_sociale,
+      forme_juridique: formData.forme_juridique,
+      siret: formData.siret,
+      adresse_ligne1: formData.adresse_ligne1,
+      code_postal: formData.code_postal,
+      ville: formData.ville,
+      siege_adresse: formData.siege_adresse,
+      dirigeant_civilite: formData.dirigeant_civilite,
+      dirigeant_fonction: formData.dirigeant_fonction
+    })
+    .eq('id', clientId)
+
+  if (error) {
+    return c.render(
+      <div style={{ padding: '40px' }}>
+        <p style={{ color: 'red' }}>Erreur lors de la modification: {error.message}</p>
+        <a href={`/clients/${clientId}/modifier`} style={{ color: '#3b82f6' }}>← Retour au formulaire</a>
+      </div>
+    )
+  }
+
+  // Redirection vers la page détail du client
+  return c.redirect(`/clients/${clientId}`)
+})
+
 export default app
