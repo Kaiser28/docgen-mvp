@@ -2059,6 +2059,350 @@ app.get('/missions/:id/modifier', async (c) => {
   )
 })
 
+// Page génération de lettre de mission
+app.get('/missions/:id/generer-lettre', async (c) => {
+  const supabase = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_ANON_KEY
+  )
+
+  const missionId = c.req.param('id')
+
+  // Récupérer la mission avec toutes les infos
+  const { data: mission, error } = await supabase
+    .from('missions')
+    .select(`
+      *,
+      clients (
+        raison_sociale,
+        forme_juridique,
+        siret,
+        adresse_ligne1,
+        code_postal,
+        ville,
+        siege_adresse,
+        dirigeant_civilite,
+        dirigeant_fonction
+      )
+    `)
+    .eq('id', missionId)
+    .single()
+
+  if (error || !mission) {
+    return c.render(
+      <div style={{ padding: '40px' }}>
+        <p style={{ color: 'red' }}>Mission non trouvée</p>
+        <a href="/missions" style={{ color: '#3b82f6' }}>← Retour aux missions</a>
+      </div>
+    )
+  }
+
+  // Récupérer les prestations
+  const { data: prestationsData } = await supabase
+    .from('missions_prestations')
+    .select(`
+      prestations_catalogue (
+        nom,
+        categorie
+      )
+    `)
+    .eq('mission_id', missionId)
+
+  const prestations = prestationsData?.map((p: any) => p.prestations_catalogue) || []
+
+  // Récupérer les infos du cabinet ACPM
+  const { data: cabinet } = await supabase
+    .from('cabinets')
+    .select('*')
+    .eq('nom', 'ACPM')
+    .single()
+
+  // Formater les dates
+  const dateLettre = new Date(mission.date_lettre).toLocaleDateString('fr-FR', { 
+    day: 'numeric', 
+    month: 'long', 
+    year: 'numeric' 
+  })
+
+  return c.html(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Lettre de mission - ${mission.clients?.raison_sociale}</title>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+      <style>
+        body {
+          font-family: 'Arial', sans-serif;
+          margin: 0;
+          padding: 20px;
+          background: #f3f4f6;
+        }
+        .container {
+          max-width: 900px;
+          margin: 0 auto;
+        }
+        .actions {
+          background: white;
+          padding: 20px;
+          border-radius: 12px;
+          margin-bottom: 20px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .letter {
+          background: white;
+          padding: 60px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          min-height: 842px;
+          position: relative;
+        }
+        .header {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 40px;
+          padding-bottom: 20px;
+          border-bottom: 2px solid #3b82f6;
+        }
+        .cabinet-info {
+          font-size: 12px;
+          color: #6b7280;
+        }
+        .cabinet-info h1 {
+          font-size: 24px;
+          color: #1f2937;
+          margin: 0 0 10px 0;
+        }
+        .client-address {
+          text-align: right;
+          font-size: 14px;
+        }
+        .date {
+          text-align: right;
+          margin: 30px 0;
+          font-size: 14px;
+          color: #6b7280;
+        }
+        .objet {
+          font-weight: bold;
+          margin: 30px 0;
+          font-size: 16px;
+        }
+        .content {
+          font-size: 14px;
+          line-height: 1.8;
+          text-align: justify;
+        }
+        .content p {
+          margin: 15px 0;
+        }
+        .prestations-list {
+          margin: 20px 0;
+          padding-left: 30px;
+        }
+        .prestations-list li {
+          margin: 8px 0;
+        }
+        .honoraires {
+          background: #f9fafb;
+          padding: 20px;
+          border-radius: 8px;
+          margin: 30px 0;
+          border-left: 4px solid #3b82f6;
+        }
+        .signature {
+          margin-top: 60px;
+          display: flex;
+          justify-content: space-between;
+        }
+        .signature-block {
+          width: 45%;
+        }
+        .signature-block p {
+          margin: 5px 0;
+          font-size: 14px;
+        }
+        .signature-line {
+          border-top: 1px solid #d1d5db;
+          margin-top: 80px;
+          padding-top: 10px;
+          font-size: 12px;
+          color: #6b7280;
+        }
+        .btn {
+          padding: 12px 24px;
+          border: none;
+          border-radius: 8px;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+          text-decoration: none;
+          display: inline-block;
+        }
+        .btn-primary {
+          background: #10b981;
+          color: white;
+        }
+        .btn-secondary {
+          background: #e5e7eb;
+          color: #374151;
+        }
+        @media print {
+          body { background: white; }
+          .actions { display: none; }
+          .letter { box-shadow: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="actions">
+          <a href="/missions/${mission.id}" class="btn btn-secondary">← Retour à la mission</a>
+          <button onclick="generatePDF()" class="btn btn-primary">📥 Télécharger PDF</button>
+        </div>
+
+        <div class="letter" id="letter-content">
+          <div class="header">
+            <div class="cabinet-info">
+              <h1>ACPM</h1>
+              <p>${cabinet?.adresse || ''}<br>
+              ${cabinet?.code_postal || ''} ${cabinet?.ville || ''}<br>
+              Tél: ${cabinet?.telephone || ''}<br>
+              Email: ${cabinet?.email || ''}</p>
+            </div>
+            <div class="client-address">
+              <strong>${mission.clients?.raison_sociale}</strong><br>
+              ${mission.clients?.forme_juridique}<br>
+              ${mission.clients?.adresse_ligne1}<br>
+              ${mission.clients?.code_postal} ${mission.clients?.ville}<br>
+              SIRET: ${mission.clients?.siret}
+            </div>
+          </div>
+
+          <div class="date">
+            ${dateLettre}
+          </div>
+
+          <div class="objet">
+            <strong>Objet :</strong> Lettre de mission - Exercice ${mission.exercice_concerne}
+          </div>
+
+          <div class="content">
+            <p>${mission.clients?.dirigeant_civilite || 'Madame, Monsieur'},</p>
+
+            <p>
+              Nous vous remercions de la confiance que vous nous témoignez en nous confiant 
+              la tenue de la comptabilité et l'établissement des documents de synthèse de 
+              <strong>${mission.clients?.raison_sociale}</strong> pour l'exercice ${mission.exercice_concerne}.
+            </p>
+
+            <p>
+              Conformément aux dispositions de la loi et du règlement intérieur de l'Ordre 
+              des Experts-Comptables, nous avons l'honneur de vous préciser les conditions 
+              dans lesquelles nous effectuerons notre mission.
+            </p>
+
+            <h3 style="margin-top: 30px; font-size: 16px; color: #1f2937;">
+              1. NATURE ET ÉTENDUE DE LA MISSION
+            </h3>
+
+            <p>
+              Notre mission comprendra les prestations suivantes :
+            </p>
+
+            <ul class="prestations-list">
+              ${prestations.map((p: any) => `<li><strong>${p.nom}</strong> (${p.categorie})</li>`).join('')}
+            </ul>
+
+            <p>
+              Ces prestations seront effectuées conformément aux normes professionnelles 
+              de l'Ordre des Experts-Comptables.
+            </p>
+
+            <h3 style="margin-top: 30px; font-size: 16px; color: #1f2937;">
+              2. HONORAIRES
+            </h3>
+
+            <div class="honoraires">
+              <p style="margin: 0;"><strong>Budget annuel HT :</strong> ${mission.budget_annuel.toLocaleString('fr-FR')} €</p>
+              <p style="margin: 10px 0 0 0;"><strong>Budget mensuel HT :</strong> ${mission.budget_mensuel.toLocaleString('fr-FR')} €</p>
+              <p style="margin: 10px 0 0 0; font-size: 12px; color: #6b7280;">
+                Ces honoraires s'entendent hors taxes et seront majorés de la TVA au taux en vigueur.
+              </p>
+            </div>
+
+            <p>
+              Les honoraires seront payables mensuellement par prélèvement automatique.
+            </p>
+
+            <h3 style="margin-top: 30px; font-size: 16px; color: #1f2937;">
+              3. OBLIGATIONS RÉCIPROQUES
+            </h3>
+
+            <p>
+              Vous vous engagez à nous fournir tous les documents et informations nécessaires 
+              à l'accomplissement de notre mission dans les délais convenus.
+            </p>
+
+            <p>
+              Nous nous engageons à respecter le secret professionnel et à vous tenir informé 
+              régulièrement de l'avancement de notre mission.
+            </p>
+
+            <p style="margin-top: 30px;">
+              Nous vous remercions de bien vouloir nous retourner un exemplaire de la présente 
+              lettre revêtu de votre signature précédée de la mention "Bon pour accord".
+            </p>
+
+            <p>
+              Nous restons à votre disposition pour tout complément d'information.
+            </p>
+
+            <p style="margin-top: 30px;">
+              Veuillez agréer, ${mission.clients?.dirigeant_civilite || 'Madame, Monsieur'}, 
+              l'expression de nos salutations distinguées.
+            </p>
+          </div>
+
+          <div class="signature">
+            <div class="signature-block">
+              <p><strong>Pour ACPM</strong></p>
+              <div class="signature-line">
+                Signature et cachet
+              </div>
+            </div>
+            <div class="signature-block">
+              <p><strong>Pour ${mission.clients?.raison_sociale}</strong></p>
+              <p style="font-size: 12px;">Bon pour accord</p>
+              <div class="signature-line">
+                Signature et cachet
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        function generatePDF() {
+          const element = document.getElementById('letter-content');
+          const opt = {
+            margin: 10,
+            filename: 'lettre-mission-${mission.clients?.raison_sociale?.replace(/[^a-zA-Z0-9]/g, '-')}-${mission.exercice_concerne}.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          };
+          
+          html2pdf().set(opt).from(element).save();
+        }
+      </script>
+    </body>
+    </html>
+  `)
+})
+
 // Traitement de la modification mission (POST)
 app.post('/missions/:id/modifier', async (c) => {
   const supabase = createClient(
